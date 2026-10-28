@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Voxscribe — Audio to Text</title>
+<meta name="description" content="Convert audio to accurate text in seconds. Powered by Whisper Large v3. Free, no sign-up." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#07070d; --panel:rgba(255,255,255,.04); --border:rgba(255,255,255,.09);
+    --text:#eceef6; --muted:#8b90a7; --a:#7c5cff; --b:#22d3ee; --c:#f472b6;
+    --grad:linear-gradient(135deg,var(--a),var(--b));
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+  .bg{position:fixed;inset:0;z-index:-1;overflow:hidden}
+  .orb{position:absolute;border-radius:50%;filter:blur(110px);opacity:.35;animation:float 18s ease-in-out infinite}
+  .o1{width:520px;height:520px;background:var(--a);top:-160px;left:-120px}
+  .o2{width:460px;height:460px;background:var(--b);top:30%;right:-160px;animation-delay:-6s;opacity:.22}
+  .o3{width:400px;height:400px;background:var(--c);bottom:-160px;left:25%;animation-delay:-12s;opacity:.18}
+  @keyframes float{50%{transform:translate(40px,30px) scale(1.08)}}
+  .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:56px 56px;mask-image:radial-gradient(ellipse at 50% 0%,#000 20%,transparent 70%)}
+
+  nav{max-width:1100px;margin:0 auto;padding:22px 24px;display:flex;align-items:center;justify-content:space-between}
+  .logo{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk';font-weight:700;font-size:20px;letter-spacing:-.02em}
+  .logo i{width:34px;height:34px;border-radius:10px;background:var(--grad);display:grid;place-items:center;box-shadow:0 8px 24px -6px var(--a)}
+  .logo svg{width:18px;height:18px}
+  .pill{font-size:12px;color:var(--muted);border:1px solid var(--border);background:var(--panel);padding:7px 13px;border-radius:99px;display:flex;align-items:center;gap:7px}
+  .pill b{width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 10px #34d399}
+
+  header{text-align:center;max-width:760px;margin:48px auto 40px;padding:0 24px}
+  .eyebrow{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--b);margin-bottom:18px}
+  h1{font-family:'Space Grotesk';font-size:clamp(38px,6.4vw,68px);line-height:1.04;letter-spacing:-.035em;font-weight:700}
+  h1 span{background:linear-gradient(135deg,#a78bfa,#22d3ee 60%,#f472b6);-webkit-background-clip:text;background-clip:text;color:transparent}
+  header p{color:var(--muted);font-size:18px;line-height:1.6;margin-top:20px}
+
+  main{max-width:860px;margin:0 auto;padding:0 24px 80px}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.025));border:1px solid var(--border);border-radius:24px;padding:28px;backdrop-filter:blur(20px);box-shadow:0 30px 80px -30px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.07)}
+
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+  .mode{text-align:left;background:rgba(0,0,0,.3);border:1px solid var(--border);color:var(--text);border-radius:14px;padding:14px 16px;cursor:pointer;transition:.2s;font-family:inherit}
+  .mode:hover{border-color:rgba(124,92,255,.5)}
+  .mode.on{border-color:var(--a);background:rgba(124,92,255,.12);box-shadow:0 0 0 1px var(--a) inset}
+  .mode b{display:block;font-size:14px;margin-bottom:3px}
+  .mode span{font-size:12px;color:var(--muted);line-height:1.4;display:block}
+
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+  .controls .full{grid-column:1/-1}
+  label{font-size:12px;color:var(--muted);font-weight:500;display:block;margin-bottom:7px}
+  select{width:100%;appearance:none;background:rgba(0,0,0,.35) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%238b90a7' stroke-width='2'%3E%3Cpath d='m1 1 5 5 5-5'/%3E%3C/svg%3E") no-repeat right 14px center;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px 38px 12px 14px;font:inherit;font-size:14px;cursor:pointer;transition:.2s}
+  select:hover,select:focus{border-color:rgba(124,92,255,.6);outline:none}
+  option{background:#12121c}
+  .hide{display:none!important}
+
+  .drop{position:relative;border:1.5px dashed rgba(255,255,255,.18);border-radius:18px;padding:52px 20px;text-align:center;cursor:pointer;transition:.25s;background:rgba(0,0,0,.2)}
+  .drop:hover,.drop.over{border-color:var(--a);background:rgba(124,92,255,.08);transform:translateY(-2px)}
+  .drop .ic{width:60px;height:60px;border-radius:18px;margin:0 auto 18px;background:var(--grad);display:grid;place-items:center;box-shadow:0 14px 36px -10px var(--a)}
+  .drop .ic svg{width:26px;height:26px}
+  .drop h3{font-size:18px;font-weight:600;margin-bottom:6px}
+  .drop p{color:var(--muted);font-size:14px}
+  .drop input{display:none}
+
+  .file{display:none;align-items:center;gap:14px;margin-top:16px;padding:14px 16px;border-radius:14px;background:rgba(0,0,0,.3);border:1px solid var(--border)}
+  .file.show{display:flex}
+  .file .meta{flex:1;min-width:0}
+  .file .name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .file .size{font-size:12px;color:var(--muted);margin-top:2px}
+  .x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:22px;line-height:1;padding:4px 8px;border-radius:8px}
+  .x:hover{color:#fff;background:rgba(255,255,255,.08)}
+  audio{width:100%;margin-top:14px;display:none;height:40px;border-radius:10px}
+  audio.show{display:block}
+
+  .btn{width:100%;margin-top:20px;border:0;border-radius:14px;padding:16px;font:600 16px Inter;color:#fff;background:var(--grad);cursor:pointer;transition:.25s;box-shadow:0 14px 40px -12px var(--a)}
+  .btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 20px 50px -12px var(--a)}
+  .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+  .note{font-size:12px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.5}
+
+  .status{display:none;margin-top:22px}
+  .status.show{display:block}
+  .srow{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:10px}
+  .srow b{color:var(--text);font-weight:600}
+  .bar{height:8px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--grad);border-radius:99px;transition:width .3s}
+  .bar.indet i{width:40%;animation:ind 1.3s ease-in-out infinite}
+  @keyframes ind{0%{margin-left:-40%}100%{margin-left:100%}}
+
+  .result{display:none;margin-top:28px;animation:up .5s ease}
+  .result.show{display:block}
+  @keyframes up{from{opacity:0;transform:translateY(14px)}}
+  .rhead{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .rhead h2{font-family:'Space Grotesk';font-size:20px;letter-spacing:-.01em}
+  .stats{font-size:12px;color:var(--muted);margin-top:3px}
+  .tools{display:flex;gap:8px;flex-wrap:wrap}
+  .tb{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:10px;font:500 13px Inter;cursor:pointer;transition:.2s}
+  .tb:hover{border-color:var(--a);background:rgba(124,92,255,.12)}
+  .tabs{display:inline-flex;padding:4px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid var(--border);margin-bottom:14px}
+  .tab{background:none;border:0;color:var(--muted);padding:8px 16px;border-radius:9px;font:500 13px Inter;cursor:pointer}
+  .tab.on{background:var(--grad);color:#fff}
+  .out{background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:16px;padding:22px;max-height:420px;overflow:auto;font-size:15.5px;line-height:1.8;white-space:pre-wrap;color:#dfe2ef}
+  .seg{display:flex;gap:14px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .seg:last-child{border:0}
+  .ts{flex:none;font:500 12px ui-monospace,monospace;color:var(--b);padding-top:4px;min-width:96px}
+  .out::-webkit-scrollbar{width:8px}.out::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:8px}
+
+  .err{display:none;margin-top:18px;padding:14px 16px;border-radius:12px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#fca5a5;font-size:14px;line-height:1.5}
+  .err.show{display:block}
+
+  .feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:44px}
+  .f{padding:22px;border-radius:18px;background:var(--panel);border:1px solid var(--border)}
+  .f h4{font-size:15px;margin-bottom:6px}
+  .f p{font-size:13.5px;color:var(--muted);line-height:1.55}
+  .f .e{font-size:22px;margin-bottom:12px}
+
+  footer{text-align:center;color:var(--muted);font-size:13px;padding:30px 24px 50px;border-top:1px solid var(--border);max-width:1100px;margin:0 auto}
+  .toast{position:fixed;bottom:28px;left:50%;transform:translate(-50%,80px);background:#1b1b2b;border:1px solid var(--border);padding:12px 20px;border-radius:12px;font-size:14px;transition:.35s;opacity:0}
+  .toast.show{transform:translate(-50%,0);opacity:1}
+
+  @media(max-width:700px){.controls,.feats,.modes{grid-template-columns:1fr}.card{padding:20px}.pill{display:none}.drop{padding:40px 16px}}
+</style>
+</head>
+<body>
+<div class="bg"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="grid"></div></div>
+
+<nav>
+  <div class="logo"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg></i>Voxscribe</div>
+  <div class="pill"><b></b>Whisper Large v3 · 99 languages</div>
+</nav>
+
+<header>
+  <span class="eyebrow">AI Speech Recognition</span>
+  <h1>Turn any audio into <span>accurate text</span></h1>
+  <p>Upload a recording and get a clean, timestamped transcript in seconds. Free, no sign-up.</p>
+</header>
+
+<main>
+  <section class="card">
+    <div class="modes">
+      <button class="mode on" id="mCloud" type="button"><b>⚡ High accuracy</b><span>Whisper Large v3 in the cloud. Fastest and most accurate.</span></button>
+      <button class="mode" id="mLocal" type="button"><b>🔒 Private</b><span>Runs on your device. Audio never leaves your browser.</span></button>
+    </div>
+
+    <div class="controls">
+      <div class="full" id="langWrap">
+        <label for="lang">Spoken language</label>
+        <select id="lang">
+          <option value="auto">Auto-detect</option>
+          <option value="en">English</option>
+          <option value="bn">Bengali (বাংলা)</option>
+          <option value="hi">Hindi</option>
+          <option value="ur">Urdu</option>
+          <option value="ar">Arabic</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="pt">Portuguese</option>
+          <option value="ru">Russian</option>
+          <option value="tr">Turkish</option>
+          <option value="id">Indonesian</option>
+          <option value="ja">Japanese</option>
+          <option value="ko">Korean</option>
+          <option value="zh">Chinese</option>
+          <option value="it">Italian</option>
+        </select>
+      </div>
+      <div class="hide" id="localModelWrap">
+        <label for="lmodel">On-device model</label>
+        <select id="lmodel">
+          <option value="onnx-community/whisper-tiny">Tiny — fastest (~40 MB)</option>
+          <option value="onnx-community/whisper-base" selected>Base — balanced (~80 MB)</option>
+          <option value="onnx-community/whisper-small">Small — most accurate (~250 MB)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="drop" id="drop">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg></div>
+      <h3>Drop your audio file here</h3>
+      <p>or click to browse · MP3, WAV, M4A, OGG, FLAC, WEBM, MP4</p>
+      <input type="file" id="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.flac,.webm,.mp4,.aac,.opus" />
+    </div>
+
+    <div class="file" id="fileCard">
+      <div class="meta"><div class="name" id="fname"></div><div class="size" id="fsize"></div></div>
+      <button class="x" id="clear" title="Remove" type="button">×</button>
+    </div>
+    <audio id="player" controls></audio>
+
+    <button class="btn" id="go" disabled type="button">Transcribe audio</button>
+    <p class="note" id="modeNote">High accuracy mode sends your audio securely to a speech-recognition service for processing. It is not stored by this site.</p>
+
+    <div class="status" id="status">
+      <div class="srow"><span id="stext"><b>Preparing…</b></span><span id="spct"></span></div>
+      <div class="bar indet" id="bar"><i></i></div>
+    </div>
+    <div class="err" id="err"></div>
+
+    <div class="result" id="result">
+      <div class="rhead">
+        <div><h2>Transcript</h2><div class="stats" id="stats"></div></div>
+        <div class="tools">
+          <button class="tb" id="copy" type="button">Copy</button>
+          <button class="tb" id="dtxt" type="button">Download .txt</button>
+          <button class="tb" id="dsrt" type="button">Download .srt</button>
+        </div>
+      </div>
+      <div class="tabs">
+        <button class="tab on" data-v="plain" type="button">Plain text</button>
+        <button class="tab" data-v="time" type="button">With timestamps</button>
+      </div>
+      <div class="out" id="out"></div>
+    </div>
+  </section>
+
+  <section class="feats">
+    <div class="f"><div class="e">🎯</div><h4>Top accuracy</h4><p>Whisper Large v3 handles accents, background noise and technical vocabulary far better than small models.</p></div>
+    <div class="f"><div class="e">🌍</div><h4>99 languages</h4><p>Auto-detects the language or lets you choose it, including Bengali, Hindi, Arabic and more.</p></div>
+    <div class="f"><div class="e">📄</div><h4>Export anywhere</h4><p>Copy the text, or download TXT or SRT subtitles with accurate timestamps.</p></div>
+  </section>
+</main>
+
+<footer>Voxscribe · Powered by OpenAI Whisper · Private mode uses Transformers.js on your device.</footer>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const $ = id => document.getElementById(id);
+const drop=$('drop'), fileIn=$('file'), go=$('go'), player=$('player');
+let file=null, result=null, view='plain', mode='cloud';
+let asr=null, asrKey='';
+
+/* ---------- helpers ---------- */
+const fmtSize=b=>b>1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+const toast=m=>{const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)};
+const showErr=m=>{$('err').textContent=m;$('err').classList.add('show')};
+const clearErr=()=>$('err').classList.remove('show');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function status(text,pct){
+  $('status').classList.add('show');
+  $('stext').innerHTML='<b>'+text+'</b>';
+  const bar=$('bar');
+  if(pct==null){bar.classList.add('indet');$('spct').textContent='';}
+  else{bar.classList.remove('indet');bar.firstElementChild.style.width=pct+'%';$('spct').textContent=Math.round(pct)+'%';}
+}
+
+/* ---------- mode switch ---------- */
+function setMode(m){
+  mode=m;
+  $('mCloud').classList.toggle('on',m==='cloud');
+  $('mLocal').classList.toggle('on',m==='local');
+  $('localModelWrap').classList.toggle('hide',m!=='local');
+  $('langWrap').classList.toggle('full',m==='cloud');
+  $('modeNote').textContent=m==='cloud'
+    ?'High accuracy mode sends your audio securely to a speech-recognition service for processing. It is not stored by this site.'
+    :'Private mode runs entirely on your device. The first run downloads the model once, then it is cached.';
+}
+$('mCloud').onclick=()=>setMode('cloud');
+$('mLocal').onclick=()=>setMode('local');
+
+/* ---------- file handling ---------- */
+function setFile(f){
+  if(!f) return;
+  file=f; clearErr(); $('result').classList.remove('show');
+  $('fname').textContent=f.name; $('fsize').textContent=fmtSize(f.size);
+  $('fileCard').classList.add('show');
+  if(player.src) URL.revokeObjectURL(player.src);
+  player.src=URL.createObjectURL(f); player.classList.add('show');
+  go.disabled=false;
+}
+function reset(){
+  file=null; fileIn.value=''; go.disabled=true;
+  $('fileCard').classList.remove('show'); player.classList.remove('show'); player.removeAttribute('src');
+  $('result').classList.remove('show'); clearErr();
+}
+drop.onclick=()=>fileIn.click();
+fileIn.onchange=e=>setFile(e.target.files[0]);
+$('clear').onclick=reset;
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>setFile(e.dataTransfer.files[0]));
+
+/* ---------- audio decoding (16 kHz mono) ---------- */
+async function decodeAudio(f){
+  const buf=await f.arrayBuffer();
+  const ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+  const audio=await ctx.decodeAudioData(buf);
+  let data;
+  if(audio.numberOfChannels>1){
+    const a=audio.getChannelData(0), b=audio.getChannelData(1);
+    data=new Float32Array(a.length);
+    for(let i=0;i<a.length;i++) data[i]=(a[i]+b[i])/2;
+  } else data=audio.getChannelData(0).slice();
+  ctx.close();
+  return {data,duration:audio.duration};
+}
+
+/* ---------- WAV encoding + smart chunking (cloud mode) ---------- */
+const SR=16000;
+const CHUNK_SEC=110;           // 110 s × 32 KB/s ≈ 3.5 MB, under Vercel's request limit
+function encodeWav(samples){
+  const buf=new ArrayBuffer(44+samples.length*2), v=new DataView(buf);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,'RIFF');v.setUint32(4,36+samples.length*2,true);w(8,'WAVE');w(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,SR,true);v.setUint32(28,SR*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);
+  w(36,'data');v.setUint32(40,samples.length*2,true);
+  let o=44;
+  for(let i=0;i<samples.length;i++,o+=2){
+    const s=Math.max(-1,Math.min(1,samples[i]));
+    v.setInt16(o,s<0?s*0x8000:s*0x7fff,true);
+  }
+  return new Blob([buf],{type:'audio/wav'});
+}
+// cut at the quietest moment near each boundary so words aren't split
+function planChunks(data){
+  const total=data.length, max=CHUNK_SEC*SR, frame=Math.floor(SR*0.2), look=6*SR;
+  const cuts=[0]; let pos=0;
+  while(total-pos>max){
+    const end=pos+max; let best=end, bestE=Infinity;
+    for(let s=end-look;s<end-frame;s+=frame){
+      let e=0; for(let i=s;i<s+frame;i++) e+=data[i]*data[i];
+      if(e<bestE){bestE=e;best=s+(frame>>1)}
+    }
+    cuts.push(best); pos=best;
+  }
+  cuts.push(total);
+  return cuts;
+}
+
+async function callApi(blob,params,tries=0){
+  const qs=new URLSearchParams(params).toString();
+  const r=await fetch('/api/transcribe?'+qs,{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:blob});
+  let j={}; try{j=await r.json()}catch{}
+  if(r.status===429&&tries<3){
+    const wait=(parseInt(r.headers.get('Retry-After'))||15)*1000;
+    status('Service is busy, retrying shortly…',null); await sleep(Math.min(wait,30000));
+    return callApi(blob,params,tries+1);
+  }
+  if(!r.ok) throw new Error(j.error||('Request failed ('+r.status+')'));
+  return j;
+}
+
+async function transcribeCloud(data,duration){
+  const lang=$('lang').value;
+  const cuts=planChunks(data);
+  const n=cuts.length-1;
+  const chunks=[]; let texts=[]; let tail='';
+  for(let i=0;i<n;i++){
+    status(n>1?`Transcribing part ${i+1} of ${n}…`:'Transcribing…',(i/n)*100);
+    const startS=cuts[i], blob=encodeWav(data.subarray(cuts[i],cuts[i+1]));
+    const params={model:'whisper-large-v3'};
+    if(lang!=='auto') params.language=lang;
+    if(tail) params.prompt=tail;           // keeps names/spelling consistent across parts
+    const res=await callApi(blob,params);
+    const off=startS/SR;
+    (res.segments||[]).forEach(s=>{
+      const t=s.text.trim(); if(t) chunks.push({s:s.start+off,e:s.end+off,t});
+    });
+    const txt=(res.text||'').trim(); texts.push(txt); tail=txt.slice(-200);
+  }
+  status('Finishing…',100);
+  return {text:texts.join(' ').replace(/\s+/g,' ').trim(),chunks};
+}
+
+/* ---------- on-device mode (Transformers.js) ---------- */
+async function loadLocal(name){
+  const {pipeline,env}=await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1');
+  env.allowLocalModels=false;
+  const hasGPU=!!navigator.gpu, key=name+(hasGPU?'-gpu':'-wasm');
+  if(asr&&asrKey===key) return asr;
+  const files={};
+  const opts={progress_callback:p=>{
+    if(p.status==='progress'&&p.total){
+      files[p.file]={l:p.loaded,t:p.total};
+      let l=0,t=0;Object.values(files).forEach(v=>{l+=v.l;t+=v.t});
+      status('Downloading model (first time only)…',l/t*100);
+    } else if(p.status==='ready') status('Loading model…',null);
+  }};
+  try{
+    asr=await pipeline('automatic-speech-recognition',name,hasGPU
+      ?{...opts,device:'webgpu',dtype:{encoder_model:'fp32',decoder_model_merged:'q4'}}
+      :{...opts,dtype:'q8'});
+  }catch(e){
+    asr=await pipeline('automatic-speech-recognition',name,{...opts,dtype:'q8'});
+  }
+  asrKey=key; return asr;
+}
+async function transcribeLocal(data){
+  const model=await loadLocal($('lmodel').value);
+  status('Transcribing on your device…',null);
+  const lang=$('lang').value;
+  const out=await model(data,{chunk_length_s:30,stride_length_s:5,return_timestamps:true,task:'transcribe',...(lang!=='auto'?{language:lang}:{})});
+  return {text:out.text.trim(),chunks:(out.chunks||[]).map(c=>({s:c.timestamp[0]??0,e:c.timestamp[1]??c.timestamp[0]??0,t:c.text.trim()}))};
+}
+
+/* ---------- run ---------- */
+go.onclick=async()=>{
+  if(!file) return;
+  clearErr(); go.disabled=true; $('result').classList.remove('show');
+  try{
+    status('Reading audio…',null);
+    const {data,duration}=await decodeAudio(file);
+    const t0=performance.now();
+    result = mode==='cloud' ? await transcribeCloud(data,duration) : await transcribeLocal(data);
+    const secs=((performance.now()-t0)/1000).toFixed(1);
+    const words=result.text?result.text.split(/\s+/).length:0;
+    $('stats').textContent=`${words} words · ${Math.round(duration)}s of audio · done in ${secs}s`;
+    render(); $('result').classList.add('show'); $('status').classList.remove('show');
+    $('result').scrollIntoView({behavior:'smooth',block:'start'});
+  }catch(e){
+    console.error(e); $('status').classList.remove('show');
+    showErr((e&&e.message)||'Something went wrong.');
+  }finally{go.disabled=false}
+};
+
+/* ---------- output ---------- */
+const ts=s=>{s=Math.max(0,s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=Math.floor(s%60);return (h?h+':':'')+String(m).padStart(h?2:1,'0')+':'+String(x).padStart(2,'0')};
+const srtTs=s=>{const ms=Math.round(s*1000),h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000),x=Math.floor(ms%60000/1000),r=ms%1000;const p=(n,l=2)=>String(n).padStart(l,'0');return `${p(h)}:${p(m)}:${p(x)},${p(r,3)}`};
+function render(){
+  const out=$('out'); out.innerHTML='';
+  if(view==='plain'){ out.textContent=result.text||'(No speech detected)'; return; }
+  if(!result.chunks.length){ out.textContent=result.text||'(No speech detected)'; return; }
+  result.chunks.forEach(c=>{
+    const d=document.createElement('div'); d.className='seg';
+    d.innerHTML=`<span class="ts">${ts(c.s)} → ${ts(c.e)}</span><span></span>`;
+    d.lastChild.textContent=c.t; out.appendChild(d);
+  });
+}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  view=b.dataset.v; if(result) render();
+});
+const base=()=>(file?file.name.replace(/\.[^.]+$/,''):'transcript');
+function save(name,content,type){
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(result.text);toast('Copied to clipboard')}catch{toast('Copy failed')}};
+$('dtxt').onclick=()=>save(base()+'.txt',result.text,'text/plain');
+$('dsrt').onclick=()=>{
+  const src=result.chunks.length?result.chunks:[{s:0,e:0,t:result.text}];
+  save(base()+'.srt',src.map((c,i)=>`${i+1}\n${srtTs(c.s)} --> ${srtTs(c.e)}\n${c.t}\n`).join('\n'),'text/plain');
+};
+</script>
+</body>
+</html>
